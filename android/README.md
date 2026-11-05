@@ -44,7 +44,7 @@
 bash scripts/remote-build.sh debug     # 或 release
 ```
 
-脚本会把 `android/` 同步到构建机、在构建机上执行 `testDebugUnitTest` / `lintDebug` / `assembleDebug`（或 release），再把 APK 取回 `android/dist/dsh-web-shell-<variant>.apk`。构建机连接信息在 `~/.config/dsh/build.env`（不入库），见仓库根 README。
+脚本会把 `android/` 同步到构建机、在构建机上执行 `testDebugUnitTest` / `lintDebug` / `assembleDebug`（或 release），再把 APK 取回 `android/dist/dsh-web-shell-<variant>.apk`。构建机连接信息在 `~/.config/dsh/build.env`（不入库），见仓库根 README；`BUILD_DIR` 用相对构建机 `$HOME` 的路径或绝对路径（不支持 `~`）。
 
 只有在**构建机本地**才直接执行：
 

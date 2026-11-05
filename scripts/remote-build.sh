@@ -8,8 +8,8 @@
 # 构建机连接信息来自环境变量或 ~/.config/dsh/build.env（不要提交到仓库）：
 #   BUILD_HOST          必填，SSH 目标，例如 user@build-machine
 #   BUILD_SSH_KEY       可选，SSH 私钥路径
-#   BUILD_DIR           可选，构建机上的工作目录（相对 $HOME 或绝对路径），
-#                       默认 dsh-build/lab-dsh-superagent
+#   BUILD_DIR           可选，构建机上的工作目录（相对构建机 $HOME 或绝对路径，
+#                       不支持 ~），默认 dsh-build/lab-dsh-superagent
 #   BUILD_JAVA_HOME     可选，构建机上的 JDK 目录，默认 $HOME/.local/jdk17
 #   BUILD_ANDROID_HOME  可选，构建机上的 Android SDK 目录，
 #                       默认 $HOME/Library/Android/sdk 或 $HOME/Android/Sdk
@@ -21,7 +21,7 @@ usage() {
   cat <<'EOF'
 用法: bash scripts/remote-build.sh [debug|release]
 
-配置项（环境变量或 ~/.config/dsh/build.env，路径可用 DSH_BUILD_ENV 覆盖）:
+配置项（环境变量或 ~/.config/dsh/build.env，显式环境变量优先；文件路径可用 DSH_BUILD_ENV 覆盖）:
   BUILD_HOST         必填，构建机 SSH 目标，如 user@build-machine
   BUILD_SSH_KEY      可选，SSH 私钥文件
   BUILD_DIR          可选，构建机上的工作目录，默认 dsh-build/lab-dsh-superagent
@@ -42,10 +42,21 @@ esac
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ENV_FILE=${DSH_BUILD_ENV:-$HOME/.config/dsh/build.env}
+# 配置文件只做默认值：调用时显式给出的环境变量优先（便于一次性覆盖 BUILD_DIR 等）。
+env_BUILD_HOST=${BUILD_HOST-}
+env_BUILD_SSH_KEY=${BUILD_SSH_KEY-}
+env_BUILD_DIR=${BUILD_DIR-}
+env_BUILD_JAVA_HOME=${BUILD_JAVA_HOME-}
+env_BUILD_ANDROID_HOME=${BUILD_ANDROID_HOME-}
 if [[ -f $ENV_FILE ]]; then
   # shellcheck disable=SC1090
   . "$ENV_FILE"
 fi
+[[ -n $env_BUILD_HOST ]] && BUILD_HOST=$env_BUILD_HOST
+[[ -n $env_BUILD_SSH_KEY ]] && BUILD_SSH_KEY=$env_BUILD_SSH_KEY
+[[ -n $env_BUILD_DIR ]] && BUILD_DIR=$env_BUILD_DIR
+[[ -n $env_BUILD_JAVA_HOME ]] && BUILD_JAVA_HOME=$env_BUILD_JAVA_HOME
+[[ -n $env_BUILD_ANDROID_HOME ]] && BUILD_ANDROID_HOME=$env_BUILD_ANDROID_HOME
 
 if [[ -z ${BUILD_HOST:-} ]]; then
   cat >&2 <<'EOF'
@@ -65,6 +76,12 @@ if [[ -n ${BUILD_SSH_KEY:-} ]]; then
 fi
 
 [[ -n $REMOTE_DIR && $REMOTE_DIR != / ]] || { echo "错误：BUILD_DIR 不合法: '$REMOTE_DIR'" >&2; exit 2; }
+case $REMOTE_DIR in
+  "~"|"~/"*)
+    echo "错误：BUILD_DIR 不支持 ~（同步与构建两端解析会不一致）。请用相对构建机 \$HOME 的路径或绝对路径。" >&2
+    exit 2
+    ;;
+esac
 
 remote_dir_q=$(printf '%q' "$REMOTE_DIR")
 
@@ -96,7 +113,6 @@ expand_home() {
   esac
 }
 
-dir=$(expand_home "$dir")
 java_home=$(expand_home "$java_home")
 android_home=$(expand_home "$android_home")
 [[ -n $dir && $dir != / ]] || { echo "BUILD_DIR 不合法: $dir" >&2; exit 2; }

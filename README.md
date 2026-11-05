@@ -45,12 +45,12 @@ bash scripts/remote-build.sh debug     # 或 release
 
 脚本会：把当前工作区同步到构建机 → 在构建机上执行单测 / Lint / assemble → 把 APK 取回 `android/dist/dsh-web-shell-<variant>.apk`。
 
-构建机连接信息由部署环境提供，写在 `~/.config/dsh/build.env`（**不要提交到仓库**），例如：
+构建机连接信息由部署环境提供，写在 `~/.config/dsh/build.env`（**不要提交到仓库**；调用时显式给出的环境变量优先，便于一次性覆盖），例如：
 
 ```sh
 BUILD_HOST=user@build-machine              # 必填，SSH 目标
 BUILD_SSH_KEY=$HOME/.ssh/build-key         # 可选，SSH 私钥
-BUILD_DIR=dsh-build/lab-dsh-superagent     # 可选，构建机上的工作目录
+BUILD_DIR=dsh-build/lab-dsh-superagent     # 可选，构建机上的工作目录（相对构建机 $HOME 或绝对路径，不支持 ~）
 BUILD_JAVA_HOME=$HOME/.local/jdk17         # 可选，构建机上的 JDK
 BUILD_ANDROID_HOME=$HOME/Library/Android/sdk  # 可选，构建机上的 Android SDK
 ```
