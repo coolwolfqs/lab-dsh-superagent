@@ -29,15 +29,33 @@
 # 1. 电脑上启动 DSH Web，监听手机能访问的地址
 dsh web --no-open --host 192.168.1.10 --port 3082
 
-# 2. 构建或直接安装仓库里的 debug APK
-cd android
-./gradlew assembleDebug
-adb install -r dist/dsh-web-shell-debug.apk
+# 2. 获取并安装 debug APK（仓库 android/dist/ 里附带最近一次构建的包；也可以按下文在独立构建机上重新构建）
+adb install -r android/dist/dsh-web-shell-debug.apk
 
 # 3. 打开 App，粘贴电脑打印的 `dsh web: http://192.168.1.10:3082/?token=...` 整行链接，点“连接”
 ```
 
-需要 JDK 17 + Android SDK 34。完整说明（反向代理 `--trusted-host` 用法、安全边界、已知限制）见 [android/README.md](android/README.md)。
+## 构建（在独立构建机上跑）
+
+Android 构建（安装 Android SDK、跑 Gradle）会占用较多 CPU/内存/磁盘 IO，**不要在承载 DSH 服务的共享 PVE 主机/容器上执行**，避免挤占宿主资源、影响 PVE 稳定性。构建统一交给独立构建机：
+
+```sh
+bash scripts/remote-build.sh debug     # 或 release
+```
+
+脚本会：把当前工作区同步到构建机 → 在构建机上执行单测 / Lint / assemble → 把 APK 取回 `android/dist/dsh-web-shell-<variant>.apk`。
+
+构建机连接信息由部署环境提供，写在 `~/.config/dsh/build.env`（**不要提交到仓库**；调用时显式给出的环境变量优先，便于一次性覆盖），例如：
+
+```sh
+BUILD_HOST=user@build-machine              # 必填，SSH 目标
+BUILD_SSH_KEY=$HOME/.ssh/build-key         # 可选，SSH 私钥
+BUILD_DIR=dsh-build/lab-dsh-superagent     # 可选，构建机上的工作目录（相对构建机 $HOME 或绝对路径，不支持 ~）
+BUILD_JAVA_HOME=$HOME/.local/jdk17         # 可选，构建机上的 JDK
+BUILD_ANDROID_HOME=$HOME/Library/Android/sdk  # 可选，构建机上的 Android SDK
+```
+
+只有构建机本身才直接执行 `cd android && ./gradlew ...`（需要 JDK 17 + Android SDK 34）。完整说明（反向代理 `--trusted-host` 用法、安全边界、已知限制）见 [android/README.md](android/README.md)。
 
 ## 已知限制
 
