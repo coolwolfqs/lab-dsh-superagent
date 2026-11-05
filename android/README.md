@@ -3,6 +3,8 @@
 一个极小的安卓 App：用系统 WebView 直接加载 **DSH 官方 Web 版本**（`dsh web` 提供的浏览器 UI）。
 壳只负责“打开官方页面”，不含任何聊天逻辑，所以 DSH 官方怎么迭代，手机上就是最新版，不需要跟着发版。
 
+> 非官方项目，与 DeepSeek 官方无关；DeepSeek / DSH 名称与标识归其所有者。
+
 - 包名：`com.dsh.webview`
 - 语言 / 依赖：Java + 系统框架，**不引入 AndroidX 等第三方运行时依赖**（仅单元测试用 JUnit）
 - minSdk 24（Android 7.0），targetSdk 34，compileSdk 34
@@ -111,3 +113,7 @@ android/
 ├── build.gradle.kts / settings.gradle.kts
 └── gradle/ + gradlew                                     # Gradle 8.9 wrapper
 ```
+
+## License
+
+[MIT](../LICENSE)。仓库内的 Gradle wrapper 归 Gradle 项目所有，遵循其各自许可证。
