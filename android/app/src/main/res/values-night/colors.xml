@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand">#4D6BFE</color>
+    <color name="screen_background">#101319</color>
+    <color name="surface">#1A1E27</color>
+    <color name="primary_text">#ECEEF3</color>
+    <color name="secondary_text">#A6ACBA</color>
+    <color name="hint_text">#767D8C</color>
+    <color name="divider">#2A2F3A</color>
+    <color name="button_text">#FFFFFF</color>
+    <color name="error">#FF6B6B</color>
+</resources>
