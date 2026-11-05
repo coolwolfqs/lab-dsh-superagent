@@ -64,19 +64,24 @@ if [[ -n ${BUILD_SSH_KEY:-} ]]; then
   SSH_OPTS+=(-i "$BUILD_SSH_KEY")
 fi
 
+[[ -n $REMOTE_DIR && $REMOTE_DIR != / ]] || { echo "错误：BUILD_DIR 不合法: '$REMOTE_DIR'" >&2; exit 2; }
+
 remote_dir_q=$(printf '%q' "$REMOTE_DIR")
 
 echo "==> 同步源码到构建机 $BUILD_HOST:$REMOTE_DIR"
+# 整目录重建：只删 build 目录会留下上一次同步的旧源码，源文件删除/改名后可能被误编译。
 tar -C "$ROOT" -cf - \
   --exclude='android/build' \
   --exclude='android/app/build' \
   --exclude='android/.gradle' \
   --exclude='android/local.properties' \
   android | ssh "${SSH_OPTS[@]}" "$BUILD_HOST" \
-  "set -e; mkdir -p -- $remote_dir_q; rm -rf -- $remote_dir_q/android/build $remote_dir_q/android/app/build $remote_dir_q/android/.gradle; tar -C $remote_dir_q -xf -"
+  "set -e; rm -rf -- $remote_dir_q; mkdir -p -- $remote_dir_q; tar -C $remote_dir_q -xf -"
 
 echo "==> 在构建机上执行 Gradle 构建（$variant）"
-ssh "${SSH_OPTS[@]}" "$BUILD_HOST" bash -s -- "$REMOTE_DIR" "$variant" "${BUILD_JAVA_HOME:-}" "${BUILD_ANDROID_HOME:-}" <<'REMOTE'
+# ssh 会把参数拼成命令行：空参数会消失。用 %q 逐个加引号（空串变成 ''），保证远端收到的位置参数不串位。
+remote_args=$(printf '%q ' "$REMOTE_DIR" "$variant" "${BUILD_JAVA_HOME:-}" "${BUILD_ANDROID_HOME:-}")
+ssh "${SSH_OPTS[@]}" "$BUILD_HOST" "bash -s -- $remote_args" <<'REMOTE'
 set -euo pipefail
 dir=$1
 variant=$2
@@ -121,9 +126,15 @@ apk="android/app/build/outputs/apk/$variant/app-$variant.apk"
 remote_apk_q=$(printf '%q' "$REMOTE_DIR/$apk")
 mkdir -p "$ROOT/android/dist"
 echo "==> 取回 APK"
-ssh "${SSH_OPTS[@]}" "$BUILD_HOST" "cat $remote_apk_q" > "$ROOT/android/dist/dsh-web-shell-$variant.apk"
-
 target="$ROOT/android/dist/dsh-web-shell-$variant.apk"
+# 先写临时文件再原子替换：传输中断时不会把已有的 dist APK 截断成空文件。
+tmp=$(mktemp "${TMPDIR:-/tmp}/dsh-web-shell-$variant.XXXXXX.apk")
+trap 'rm -f "$tmp"' EXIT
+ssh "${SSH_OPTS[@]}" "$BUILD_HOST" "cat $remote_apk_q" > "$tmp"
+[[ -s $tmp ]] || { echo "错误：取回的 APK 为空" >&2; exit 1; }
+mv -f "$tmp" "$target"
+trap - EXIT
+
 if command -v sha256sum >/dev/null 2>&1; then
   digest=$(sha256sum "$target" | cut -d' ' -f1)
 else
